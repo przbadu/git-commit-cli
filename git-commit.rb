@@ -1,16 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "thor"
-require "yaml"
-require "json"
-require "fileutils"
-require "ruby_llm"
+require 'thor'
+require 'yaml'
+require 'json'
+require 'fileutils'
+require 'ruby_llm'
 
 class GitCommit < Thor
-  CONFIG_DIR = File.join(Dir.home, ".git_commit_cli")
-  CONFIG_FILE = File.join(CONFIG_DIR, "config.yml")
-  DEFAULT_SYSTEM_PROMPT = <<~PROMPT.freeze
+  CONFIG_DIR = File.join(Dir.home, '.git_commit_cli')
+  CONFIG_FILE = File.join(CONFIG_DIR, 'config.yml')
+  DEFAULT_SYSTEM_PROMPT = <<~PROMPT
     # Generate Commit Message
 
     Generate a clear, concise commit message for my uncommitted changes.
@@ -34,7 +34,7 @@ class GitCommit < Thor
 
     ### Commit Types
     - `feat`: New feature or functionality
-    - `fix`: Bug fix or error correction  
+    - `fix`: Bug fix or error correction#{'  '}
     - `perf`: Performance improvements
     - `refactor`: Code restructuring without changing functionality
     - `style`: Formatting, spacing, semicolons (no code change)
@@ -54,7 +54,7 @@ class GitCommit < Thor
     ## Guidelines
 
     1. **Title line**: Maximum 50 characters, imperative mood ("add" not "added")
-    2. **Description**: 
+    2. **Description**:#{' '}
        - Use bullet points for multiple changes
        - Focus on what and why, not how
        - Keep each line under 72 characters
@@ -106,46 +106,46 @@ class GitCommit < Thor
     Based on the git diff provided, generate a commit message following these guidelines. If no issue number is provided, omit it from the message.
   PROMPT
 
-  desc "setup", "Configure your local LLM settings"
-  option :provider, type: :string, desc: "LLM provider (openai, anthropic, gemini, ollama, llama_cpp, mistral, etc.)"
-  option :model, type: :string, desc: "LLM model to use (depends on provider)"
-  option :api_key, type: :string, desc: "API key if required by provider"
-  option :api_base_url, type: :string, desc: "Base URL for API (for self-hosted or alternative endpoints)"
-  option :system_prompt, type: :string, desc: "Custom system prompt for commit messages"
+  desc 'setup', 'Configure your local LLM settings'
+  option :provider, type: :string, desc: 'LLM provider (openai, anthropic, gemini, ollama, llama_cpp, mistral, etc.)'
+  option :model, type: :string, desc: 'LLM model to use (depends on provider)'
+  option :api_key, type: :string, desc: 'API key if required by provider'
+  option :api_base_url, type: :string, desc: 'Base URL for API (for self-hosted or alternative endpoints)'
+  option :system_prompt, type: :string, desc: 'Custom system prompt for commit messages'
   def setup
     ensure_config_dir
 
     config = load_config
 
-    puts "Configuring Git Commit CLI"
-    puts "="*20
+    puts 'Configuring Git Commit CLI'
+    puts '=' * 20
 
     # Get provider
     providers = RubyLLM::Provider.available_providers
     config[:provider] = options[:provider]
 
     unless config[:provider] && providers.include?(config[:provider])
-      puts "Available providers: #{providers.join(", ")}"
-      config[:provider] = ask("LLM provider to use:")
+      puts "Available providers: #{providers.join(', ')}"
+      config[:provider] = ask('LLM provider to use:')
 
       unless providers.include?(config[:provider])
         puts "Warning: '#{config[:provider]}' is not in the list of available providers."
         puts "Make sure it's installed and supported by RubyLLM."
-        exit 1 unless yes?("Continue anyway? (y/n)")
+        exit 1 unless yes?('Continue anyway? (y/n)')
       end
     end
 
     # Get model
-    config[:model] = options[:model] || ask("Model to use (e.g., gpt-4, claude-3-opus, gemma3, llama3, mistral-small):")
+    config[:model] = options[:model] || ask('Model to use (e.g., gpt-4, claude-3-opus, gemma3, llama3, mistral-small):')
 
     # Get API key if needed
-    if ["openai", "anthropic", "google", "mistral", "cohere"].include?(config[:provider])
+    if %w[openai anthropic google mistral cohere].include?(config[:provider])
       config[:api_key] = options[:api_key] || ask("API key for #{config[:provider]}:")
     end
 
     # Get API base URL if needed
-    if options[:api_base_url] || yes?("Do you want to specify a custom API base URL? (y/n)")
-      config[:api_base_url] = options[:api_base_url] || ask("API base URL:")
+    if options[:api_base_url] || yes?('Do you want to specify a custom API base URL? (y/n)')
+      config[:api_base_url] = options[:api_base_url] || ask('API base URL:')
     end
 
     # Use default system prompt if not provided
@@ -160,23 +160,23 @@ class GitCommit < Thor
     puts "\nConfiguration saved to #{CONFIG_FILE}"
 
     # Test the configuration
-    if yes?("Would you like to test the LLM configuration? (y/n)")
-      begin
-        llm = initialize_llm(config)
-        response = llm.chat(system: "You are a helpful assistant.", user: "Say hello!")
-        puts "\nLLM test response: #{response}"
-        puts "Configuration test successful!"
-      rescue StandardError => exception
-        puts "\nError testing LLM configuration: #{e.message}+"
-        puts "Please check your configuration and try again."
-      end
+    return unless yes?('Would you like to test the LLM configuration? (y/n)')
+
+    begin
+      llm = initialize_llm(config)
+      response = llm.chat(system: 'You are a helpful assistant.', user: 'Say hello!')
+      puts "\nLLM test response: #{response}"
+      puts 'Configuration test successful!'
+    rescue StandardError
+      puts "\nError testing LLM configuration: #{e.message}+"
+      puts 'Please check your configuration and try again.'
     end
   end
 
-  desc "commit", "Generate and commit with an AI-generated commit message"
-  option :prompt, type: :string, desc: "Additional instructions for the LLM"
-  option :stage_all, type: :boolean, desc: "Stage all unstaged changes before committing"
-  option :issue, type: :string, desc: "Issue/ticket number to include in the commit message"
+  desc 'commit', 'Generate and commit with an AI-generated commit message'
+  option :prompt, type: :string, desc: 'Additional instructions for the LLM'
+  option :stage_all, type: :boolean, desc: 'Stage all unstaged changes before committing'
+  option :issue, type: :string, desc: 'Issue/ticket number to include in the commit message'
   def commit
     check_git_installed
 
@@ -186,23 +186,23 @@ class GitCommit < Thor
 
     # Stage all changes if requested
     if options[:stage_all]
-      system("git add .")
-      puts "Staged all changes."
+      system('git add .')
+      puts 'Staged all changes.'
     end
 
     staged_changes = `git diff --staged`
     if staged_changes.empty?
       unstaged_changes = `git diff`
       if unstaged_changes.empty?
-        puts "No changes to commit."
+        puts 'No changes to commit.'
         return
       else
-        puts "No staged changes found, but there are unstaged changes."
-        if yes?("Would you like to stage all changes? (y/n)")
-          system("git add .")
-          puts "Staged all changes."
+        puts 'No staged changes found, but there are unstaged changes.'
+        if yes?('Would you like to stage all changes? (y/n)')
+          system('git add .')
+          puts 'Staged all changes.'
         else
-          puts "No changes were staged. Exiting."
+          puts 'No changes were staged. Exiting.'
         end
       end
     end
@@ -212,9 +212,9 @@ class GitCommit < Thor
     staged_diff = `git diff --staged`
     unstaged_files = `git diff --name-only`.split("\n")
 
-    puts "Analyzing changes..."
-    puts "Staged files: #{staged_files.join(", ")}" unless staged_files.empty?
-    puts "Unstaged files: #{unstaged_files.join(", ")}" unless unstaged_files.empty?
+    puts 'Analyzing changes...'
+    puts "Staged files: #{staged_files.join(', ')}" unless staged_files.empty?
+    puts "Unstaged files: #{unstaged_files.join(', ')}" unless unstaged_files.empty?
 
     # Prepare prompt with additional user instructions if provided
     user_prompt = "Here are the git changes to summarize in a commit message:|n\n#{staged_diff}\n\n"
@@ -229,16 +229,16 @@ class GitCommit < Thor
     commit_message = generate_commit_message(config, user_prompt)
 
     puts "\nGenerated commit message:"
-    puts "-"*20
+    puts '-' * 20
     puts commit_message
-    puts "-"*20
+    puts '-' * 20
 
     # Confirm with user
-    if yes?("Use this commit message? (y/n)")
-      system("git", "commit", "-m", commit_message)
-      puts "Changes committed successful!"
+    if yes?('Use this commit message? (y/n)')
+      system('git', 'commit', '-m', commit_message)
+      puts 'Changes committed successful!'
     else
-      puts "Commit cancelled."
+      puts 'Commit cancelled.'
     end
   end
 
@@ -260,26 +260,26 @@ class GitCommit < Thor
 
   def check_config(config)
     missing = []
-    missing << "provider" unless config[:provider]
-    missing << "model" unless config[:model]
+    missing << 'provider' unless config[:provider]
+    missing << 'model' unless config[:model]
 
-    if missing.present?
-      puts "Missing configuration: #{missing.join(", ")}"
-      puts "Please run 'git-commit setup' first."
-      exit 1
-    end
+    return unless missing.present?
+
+    puts "Missing configuration: #{missing.join(', ')}"
+    puts "Please run 'git-commit setup' first."
+    exit 1
   end
 
   def check_git_installed
-    unless system("git --version > /dev/null 2>&1")
-      puts "Git is not installed or not in PATH. Please install git and try again."
+    unless system('git --version > /dev/null 2>&1')
+      puts 'Git is not installed or not in PATH. Please install git and try again.'
       exit 1
     end
 
-    unless Dir.exist?(".git")
-      puts "Not a git repository. Please run this command in a git repository."
-      exit 1
-    end
+    return if Dir.exist?('.git')
+
+    puts 'Not a git repository. Please run this command in a git repository.'
+    exit 1
   end
 
   def initialize_llm(config)
@@ -292,51 +292,46 @@ class GitCommit < Thor
     llm_params[:api_key] = config[:api_key] if config[:api_key] && !config[:api_key].empty?
 
     # Add base URL if present
-    if config[:api_base_url] && !config[:api_base_url].empty?
-      llm_params[:api_base_url] = config[:api_base_url]
-    end
+    llm_params[:api_base_url] = config[:api_base_url] if config[:api_base_url] && !config[:api_base_url].empty?
 
     # Initialize LLM
     RubyLLM.client(**llm_params)
   end
 
   def generate_commit_message(config, user_prompt)
-    begin
-      llm = initialize_llm(config)
+    llm = initialize_llm(config)
 
-      # Send request to LLM
-      response = llm.chat(
-        system: config[:system_prompt],
-        user: user_prompt,
-        temperature: 0.7,
-        max_tokens: 150
-      )
+    # Send request to LLM
+    response = llm.chat(
+      system: config[:system_prompt],
+      user: user_prompt,
+      temperature: 0.7,
+      max_tokens: 150
+    )
 
-      # Return the commit message
-      response.strip
-    rescue StandardError => exception
-      puts "Failed to generate commit message: #{e.message}"
+    # Return the commit message
+    response.strip
+  rescue StandardError
+    puts "Failed to generate commit message: #{e.message}"
 
-      if yes?("Would you like to enter a commit message manually? (y/n)")
-        ask("Enter your commit message:")
-      else
-        exit 1
-      end
+    if yes?('Would you like to enter a commit message manually? (y/n)')
+      ask('Enter your commit message:')
+    else
+      exit 1
     end
   end
 end
 
-
 # Add commands for installation and listing providers
 class GitCommitCLI < Thor
-  desc "install", "Install the git-commit command globally"
+  desc 'install', 'Install the git-commit command globally'
   def install
     script_path = File.expand_path(__FILE__)
-    bin_dir = "/usr/local/bin"
+    bin_dir = '/usr/local/bin'
 
-    if File.exist?("/usr/local/bin") && File.writable?("/usr/local/bin")
+    if File.exist?('/usr/local/bin') && File.writable?('/usr/local/bin')
       # Using sudo if available, otherwise direct copy
-      if system("which sudo > /dev/null 2>&1")
+      if system('which sudo > /dev/null 2>&1')
         system("sudo ln -sf #{script_path} #{bin_dir}/git-commit")
       else
         FuileUtils.ln_sf(script_path, "#{bin_dir}/git-commit")
@@ -346,27 +341,25 @@ class GitCommitCLI < Thor
       puts "You can now use 'git commit' or 'git-commit' command from anywhere."
     else
       puts "Cannot install to #{bin_dir} (permission denied.)"
-      puts "Try running this command with sudo:"
+      puts 'Try running this command with sudo:'
       puts "  sudo ruby #{script_path} install"
     end
   end
 
-  desc "providers", "List available LLM providers"
+  desc 'providers', 'List available LLM providers'
   def providers
-    begin
-      providers = RubyLLM::Provider.available_providers
-      puts "Available LLM providers:"
-      puts "="*20
+    providers = RubyLLM::Provider.available_providers
+    puts 'Available LLM providers:'
+    puts '=' * 20
 
-      providers.each do |provider|
-        puts "- #{provider}"
-      end
-      puts "\nTo configure, use: git-commit setup --provider PROVIDER_NAME"
-    rescue StandardError => exception
-      puts "Error getting providers: #{e.message}"
-      puts "Make sure the ruby_llm gem is installed correctly."
+    providers.each do |provider|
+      puts "- #{provider}"
     end
+    puts "\nTo configure, use: git-commit setup --provider PROVIDER_NAME"
+  rescue StandardError
+    puts "Error getting providers: #{e.message}"
+    puts 'Make sure the ruby_llm gem is installed correctly.'
   end
 end
 
-GitCommit.start(ARGV)
+GitCommitCLI.start(ARGV)
